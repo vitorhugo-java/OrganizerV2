@@ -1,16 +1,35 @@
 name: Release
 
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
+  push:
+    tags:
+      - "v*"
 
 jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test -v -race ./...
+
   build:
-    if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      startsWith(github.event.workflow_run.head_branch, 'v')
     name: Build ${{ matrix.binary }}
+    needs: test
     strategy:
       fail-fast: false
       matrix:
@@ -31,8 +50,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
 
       - uses: actions/setup-go@v5
         with:
@@ -45,7 +62,7 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: "0"
-          VERSION: ${{ github.event.workflow_run.head_branch }}
+          VERSION: ${{ github.ref_name }}
         run: |
           go build \
             -ldflags="-s -w -X main.version=${VERSION}" \
@@ -73,7 +90,6 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.workflow_run.head_branch }}
           files: |
             organizer-linux-amd64
             organizer-linux-arm64
