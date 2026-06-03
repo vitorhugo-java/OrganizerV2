@@ -69,10 +69,26 @@ notifications:
     open_file: true
     # Open the folder containing the moved file.
     open_location: true
-    # Copy the absolute destination path to the clipboard.
+    # Copy the absolute destination path to the clipboard (Linux / fallback).
     copy_path: true
+    # Enable the "Copy To" button in the Windows destination dialog.
+    # Copies the file bytes to the chosen shortcut folder.
+    copy_file: true
     # Dismiss / acknowledge the notification.
     confirm: true
+
+  # Named destination shortcuts shown in the Windows interactive dialog.
+  # The user can move or copy the organised file to any of these folders.
+  # Paths may use "~/" for the home directory.
+  # Leave empty (or omit) to suppress the destination selector.
+  #
+  # Example:
+  # shortcuts:
+  #   - name: Desktop
+  #     path: ~/Desktop
+  #   - name: Share
+  #     path: D:/Share
+  shortcuts: []
 
 # Logging: "debug" | "info" | "warn" | "error"
 log_level: info

@@ -2,6 +2,7 @@ package pathutil
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -37,6 +38,45 @@ func ResolveDuplicate(destPath string) (string, error) {
 // EnsureDir creates dir and all parent directories with mode 0755.
 func EnsureDir(dir string) error {
 	return os.MkdirAll(dir, 0o755)
+}
+
+// CopyFile copies the bytes of src to a newly created dst.
+// The parent directory of dst must already exist.
+// If dst already exists it is truncated.
+func CopyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return fmt.Errorf("open source: %w", err)
+	}
+	defer in.Close()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return fmt.Errorf("create dest: %w", err)
+	}
+
+	if _, err := io.Copy(out, in); err != nil {
+		out.Close()
+		os.Remove(dst)
+		return fmt.Errorf("copy data: %w", err)
+	}
+	if err := out.Close(); err != nil {
+		os.Remove(dst)
+		return fmt.Errorf("close dest: %w", err)
+	}
+	return nil
+}
+
+// MoveFile moves src to dst. It tries os.Rename first; on any failure it
+// falls back to CopyFile then Remove so cross-device moves also work.
+func MoveFile(src, dst string) error {
+	if err := os.Rename(src, dst); err == nil {
+		return nil
+	}
+	if err := CopyFile(src, dst); err != nil {
+		return err
+	}
+	return os.Remove(src)
 }
 
 // ExpandHome replaces a leading "~/" with the current user's home directory.
