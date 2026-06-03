@@ -27,6 +27,10 @@ go.work.sum
 # env file
 .env
 
+# Built binaries
+/organizer
+/organizer.exe
+
 # Editor/IDE
 # .idea/
 # .vscode/
