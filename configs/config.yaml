@@ -1,0 +1,80 @@
+# OrganizerV2 — example configuration
+# Copy this to ~/.config/organizerv2/config.yaml and adjust paths.
+# Run `organizer config init` to write the defaults automatically.
+
+# Directories to watch. target_base is where category subfolders are created.
+# Use ~ for your home directory. You can list multiple entries.
+watch_paths:
+  - path: ~/Downloads
+    target_base: ~/Downloads
+
+# How long (seconds) to wait between polling cycles when fsnotify is unavailable.
+poll_interval_seconds: 2
+
+# Classification rules: map categories to lists of file extensions.
+# Extensions are case-insensitive. Add/remove entries with:
+#   organizer config rules add --category MyCategory --ext .xyz
+#   organizer config rules remove --ext .xyz
+rules:
+  - category: Image
+    extensions: [.jpg, .jpeg, .png, .gif, .bmp, .svg, .webp, .tiff, .ico,
+                 .heic, .heif, .avif, .psd, .tga, .cr2, .nef, .arw]
+  - category: Executables
+    extensions: [.exe, .msi, .deb, .appimage, .bat, .cmd, .ps1,
+                 .msix, .msixbundle, .appx, .appxbundle]
+  - category: Documents
+    extensions: [.pdf, .doc, .docx, .xls, .xlsx, .ppt, .pptx, .txt,
+                 .odt, .ods, .odp, .csv, .rtf, .md]
+  - category: Compacted
+    extensions: [.zip, .rar, .7z, .tar, .gz, .bz2, .xz, .zst, .tgz, .zipx]
+  - category: ISO
+    extensions: [.iso, .img, .vhd, .vhdx]
+  - category: Torrent
+    extensions: [.torrent]
+  - category: Video
+    extensions: [.mkv, .mp4, .avi, .mov, .webm, .flv, .wmv, .m4v, .mpg, .mpeg]
+  - category: Audio
+    extensions: [.wav, .mp3, .flac, .aac, .ogg, .m4a, .wma, .opus]
+  - category: Script
+    extensions: [.py, .pyw, .js, .ts, .tsx, .go, .rs, .rb, .sh, .java, .c,
+                 .cpp, .json, .yml, .yaml, .toml, .ini, .html, .css, .scss,
+                 .vue, .php]
+
+# Extensions that are NEVER moved (incomplete/temporary download artifacts).
+ignore_extensions:
+  - .tmp
+  - .!qB
+  - .!qb
+  - .!ut
+  - .fdmdownload
+  - .opdownload
+  - .crdownload
+  - .aria2
+  - .part
+  - .download
+  - .partial
+  - .downloading
+  - .filepart
+  - .tmpfile
+  - .!sync
+
+# Files with unrecognised extensions go here.
+fallback_category: Others
+
+# Desktop notifications after each move.
+notifications:
+  enabled: true
+  actions:
+    # Open the moved file with the default application.
+    open_file: true
+    # Open the folder containing the moved file.
+    open_location: true
+    # Copy the absolute destination path to the clipboard.
+    copy_path: true
+    # Dismiss / acknowledge the notification.
+    confirm: true
+
+# Logging: "debug" | "info" | "warn" | "error"
+log_level: info
+# Leave empty to log to stdout only. Set a path to also write to a file.
+log_file: ""

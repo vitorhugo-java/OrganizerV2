@@ -1,1 +1,184 @@
 # OrganizerV2
+
+A clean, cross-platform file organizer written in Go. Drop files into a watched folder and they are automatically sorted into category subfolders by extension.
+
+Supports **Windows** and **Linux** from a single codebase.
+
+---
+
+## Features
+
+- **Real-time watching** using fsnotify (no polling delay)
+- **Extension-based classification** into configurable category folders
+- **Duplicate handling** — `file (2).ext`, `file (3).ext`, …
+- **Ignore incomplete downloads** — `.tmp`, `.crdownload`, `.!qB`, and more
+- **Desktop notifications** with four actions:
+  - **Open File** — open the moved file with the default application
+  - **Open Location** — open the destination folder
+  - **Copy Path** — copy the absolute path to the clipboard
+  - **Confirm** — dismiss the notification
+- **One-shot scan** mode with `--dry-run` preview
+- **YAML configuration** — no hardcoded paths
+- **CI/CD** — GitHub Actions builds and publishes release binaries
+
+---
+
+## Installation
+
+### Download a binary
+
+Grab the latest release binary for your platform from [Releases](../../releases).
+
+### Build from source
+
+```bash
+git clone https://github.com/vitorhugo-java/organizerv2.git
+cd organizerv2
+go build -o organizer ./cmd/organizer
+```
+
+Requires **Go 1.22+**.
+
+---
+
+## Quick start
+
+```bash
+# Generate a default config file
+organizer config init
+
+# Edit ~/.config/organizerv2/config.yaml to set your watch paths, then:
+
+# Start the watcher daemon
+organizer start
+
+# Or do a one-shot scan (safe preview first)
+organizer scan --dry-run ~/Downloads
+organizer scan ~/Downloads
+```
+
+---
+
+## Configuration
+
+Config file location: `~/.config/organizerv2/config.yaml`
+
+Use `--config /path/to/config.yaml` to override.
+
+See [`configs/config.yaml`](configs/config.yaml) for a fully annotated example.
+
+### Key fields
+
+| Field | Description |
+|---|---|
+| `watch_paths` | Directories to watch. Each entry has `path` and `target_base`. |
+| `rules` | Extension → category mappings. |
+| `ignore_extensions` | Extensions that are never moved (partial downloads, temp files). |
+| `fallback_category` | Destination for files with unrecognised extensions (default: `Others`). |
+| `notifications.enabled` | Enable/disable desktop notifications. |
+| `notifications.actions` | Toggle individual notification buttons. |
+
+---
+
+## CLI reference
+
+```
+organizer start                    Start the file watcher daemon
+organizer scan [path]              One-shot scan (--dry-run to preview)
+organizer config init              Write default config file
+organizer config rules list        List all classification rules
+organizer config rules add         Add an extension  (--category, --ext)
+organizer config rules remove      Remove an extension  (--ext)
+organizer version                  Print version
+```
+
+Global flags: `--config <path>`, `--log-level <level>`
+
+---
+
+## Notifications
+
+### Linux
+
+Notifications are delivered via `notify-send`. Install it with your package manager:
+
+```bash
+# Debian/Ubuntu
+sudo apt install libnotify-bin
+
+# Arch
+sudo pacman -S libnotify
+```
+
+The **Copy Path** action requires one of `wl-copy` (Wayland), `xclip`, or `xsel`.
+
+```bash
+sudo apt install wl-clipboard   # Wayland
+sudo apt install xclip           # X11
+```
+
+The **Open Location** action opens the folder via `xdg-open`.
+
+### Windows
+
+Notifications are native Windows toast messages with clickable action buttons for all four actions. The **Copy Path** action writes to the Windows clipboard immediately on notification delivery.
+
+---
+
+## Category folders
+
+| Category | Example extensions |
+|---|---|
+| Image | .jpg .png .gif .webp .heic .svg … |
+| Executables | .exe .msi .deb .appimage … |
+| Documents | .pdf .docx .xlsx .txt .md … |
+| Compacted | .zip .rar .7z .tar.gz … |
+| ISO | .iso .img .vhd … |
+| Torrent | .torrent |
+| Video | .mp4 .mkv .avi .mov … |
+| Audio | .mp3 .flac .wav .opus … |
+| Script | .py .js .go .rs .sh … |
+| Others | everything else |
+
+---
+
+## Running as a background service
+
+### Linux (systemd)
+
+```ini
+# ~/.config/systemd/user/organizerv2.service
+[Unit]
+Description=OrganizerV2 file watcher
+
+[Service]
+ExecStart=/usr/local/bin/organizer start
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+```
+
+```bash
+systemctl --user enable --now organizerv2
+```
+
+### Windows (startup folder)
+
+Place a shortcut to `organizer.exe start` in:
+`%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup`
+
+---
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Run tests: `go test ./...`
+4. Submit a pull request
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).

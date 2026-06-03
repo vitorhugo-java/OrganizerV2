@@ -1,0 +1,80 @@
+package pathutil
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestResolveDestination(t *testing.T) {
+	result := ResolveDestination("/base", "Image", "photo.jpg")
+	expected := filepath.Join("/base", "Image", "photo.jpg")
+	if result != expected {
+		t.Errorf("expected %s, got %s", expected, result)
+	}
+}
+
+func TestResolveDuplicateNone(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "file.txt")
+	result, err := ResolveDuplicate(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result != path {
+		t.Errorf("expected original path %s, got %s", path, result)
+	}
+}
+
+func TestResolveDuplicateIncrement(t *testing.T) {
+	dir := t.TempDir()
+	base := filepath.Join(dir, "file.txt")
+	// Create the base file and a (2) duplicate.
+	os.WriteFile(base, []byte("x"), 0o644)
+	os.WriteFile(filepath.Join(dir, "file (2).txt"), []byte("x"), 0o644)
+
+	result, err := ResolveDuplicate(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := filepath.Join(dir, "file (3).txt")
+	if result != expected {
+		t.Errorf("expected %s, got %s", expected, result)
+	}
+}
+
+func TestEnsureDir(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "a", "b", "c")
+	if err := EnsureDir(dir); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(dir)
+	if err != nil || !info.IsDir() {
+		t.Errorf("expected directory to exist: %v", err)
+	}
+}
+
+func TestExpandHome(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip("no home dir")
+	}
+	result, err := ExpandHome("~/foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := filepath.Join(home, "foo")
+	if result != expected {
+		t.Errorf("expected %s, got %s", expected, result)
+	}
+}
+
+func TestExpandHomeNoExpand(t *testing.T) {
+	result, err := ExpandHome("/absolute/path")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result != "/absolute/path" {
+		t.Errorf("unexpected expansion: %s", result)
+	}
+}
