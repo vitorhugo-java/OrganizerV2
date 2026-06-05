@@ -77,18 +77,15 @@ notifications:
     # Dismiss / acknowledge the notification.
     confirm: true
 
-  # Named destination shortcuts shown in the Windows interactive dialog.
-  # The user can move or copy the organised file to any of these folders.
+  # Named destination shortcuts shown in the Windows interactive dialog
+  # (the "Redirect to" ComboBox with Move To / Copy To buttons).
   # Paths may use "~/" for the home directory.
-  # Leave empty (or omit) to suppress the destination selector.
-  #
-  # Example:
-  # shortcuts:
-  #   - name: Desktop
-  #     path: ~/Desktop
-  #   - name: Share
-  #     path: D:/Share
-  shortcuts: []
+  # Remove entries or leave the list empty to hide the destination selector.
+  shortcuts:
+    - name: Desktop
+      path: ~/Desktop
+    - name: Documents
+      path: ~/Documents
 
 # Logging: "debug" | "info" | "warn" | "error"
 log_level: info
