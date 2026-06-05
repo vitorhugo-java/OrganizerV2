@@ -76,7 +76,7 @@ func (n *windowsNotifier) deliver(event FileEvent) {
 		if err := redirectFile(event.Destination, dest, true); err != nil {
 			log.Printf("[notifier] copy to %s error: %v", dest, err)
 		}
-	// "keep" and "" → nothing to do.
+	// "keep" and "" -> nothing to do.
 	}
 }
 
@@ -101,7 +101,6 @@ func redirectFile(srcFile, destDir string, copyOnly bool) error {
 // display a native Windows Forms dialog, and returns the user's chosen action
 // and destination path.  Returns ("keep", "", nil) on dismissal or timeout.
 func showDestinationDialog(cfg config.NotificationConfig, event FileEvent) (action, dest string, err error) {
-	// Shortcuts are already ordered by config; extract parallel slices for PS.
 	var names, paths []string
 	for _, s := range cfg.Shortcuts {
 		names = append(names, s.Name)
@@ -183,10 +182,9 @@ func openLocation(dirPath string) {
 func (n *windowsNotifier) Close() error { return nil }
 
 // dialogScript is the PowerShell WinForms destination-selector dialog.
-// It accepts parameters via -File invocation and writes one line to stdout:
-//
-//	"<action>|<path>"
-//
+// It always shows a ComboBox with configured shortcuts plus a "Browse..." option,
+// so Move To / Copy To buttons are always available regardless of config.
+// Writes one line to stdout: "<action>|<path>"
 // where action is one of: keep, open_file, open_location, move, copy.
 const dialogScript = `
 param(
@@ -204,7 +202,8 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
-$script:result = "keep|$CurrentFile"
+$script:result      = "keep|$CurrentFile"
+$script:browsedPath = ''
 $filename    = Split-Path $CurrentFile -Leaf
 $currentDir  = Split-Path $CurrentFile -Parent
 
@@ -219,9 +218,10 @@ if ($ShortcutNames -ne '') {
         if ($n -and $p) { $destMap[$n] = $p }
     }
 }
-$hasShortcuts = $destMap.Count -gt 0
 
-# ── Form ─────────────────────────────────────────────────────────────────────
+$browseKey = 'Browse...'
+
+# Form
 $form = New-Object System.Windows.Forms.Form
 $form.Text            = 'OrganizerV2'
 $form.ClientSize      = New-Object System.Drawing.Size(520, 205)
@@ -233,7 +233,7 @@ $form.MinimizeBox     = $false
 
 # Title label
 $lblTitle = New-Object System.Windows.Forms.Label
-$lblTitle.Text     = "$filename — moved to $Category"
+$lblTitle.Text     = "$filename - moved to $Category"
 $lblTitle.Font     = New-Object System.Drawing.Font('Segoe UI', 10, [System.Drawing.FontStyle]::Bold)
 $lblTitle.Location = New-Object System.Drawing.Point(12, 12)
 $lblTitle.Size     = New-Object System.Drawing.Size(496, 24)
@@ -255,34 +255,30 @@ $sep.Location    = New-Object System.Drawing.Point(12, 62)
 $sep.Size        = New-Object System.Drawing.Size(496, 1)
 $form.Controls.Add($sep)
 
-# ── Shortcut combo (only when shortcuts are configured) ──────────────────────
-$script:combo   = $null
-$script:btnMove = $null
-$script:btnCopy = $null
+# Redirect to label
+$lblDest = New-Object System.Windows.Forms.Label
+$lblDest.Text     = 'Redirect to:'
+$lblDest.Font     = New-Object System.Drawing.Font('Segoe UI', 9)
+$lblDest.Location = New-Object System.Drawing.Point(12, 74)
+$lblDest.Size     = New-Object System.Drawing.Size(90, 22)
+$form.Controls.Add($lblDest)
 
-if ($hasShortcuts) {
-    $lblDest = New-Object System.Windows.Forms.Label
-    $lblDest.Text     = 'Redirect to:'
-    $lblDest.Font     = New-Object System.Drawing.Font('Segoe UI', 9)
-    $lblDest.Location = New-Object System.Drawing.Point(12, 74)
-    $lblDest.Size     = New-Object System.Drawing.Size(90, 22)
-    $form.Controls.Add($lblDest)
+# ComboBox - always shown with shortcuts + Browse...
+$script:combo = New-Object System.Windows.Forms.ComboBox
+$script:combo.DropDownStyle = 'DropDownList'
+$script:combo.Font          = New-Object System.Drawing.Font('Segoe UI', 9)
+$script:combo.Location      = New-Object System.Drawing.Point(107, 71)
+$script:combo.Size          = New-Object System.Drawing.Size(401, 22)
+$null = $script:combo.Items.Add("Keep in $Category (current)")
+foreach ($key in $destMap.Keys) { $null = $script:combo.Items.Add($key) }
+$null = $script:combo.Items.Add($browseKey)
+$script:combo.SelectedIndex = 0
+$form.Controls.Add($script:combo)
 
-    $script:combo = New-Object System.Windows.Forms.ComboBox
-    $script:combo.DropDownStyle = 'DropDownList'
-    $script:combo.Font          = New-Object System.Drawing.Font('Segoe UI', 9)
-    $script:combo.Location      = New-Object System.Drawing.Point(107, 71)
-    $script:combo.Size          = New-Object System.Drawing.Size(401, 22)
-    $null = $script:combo.Items.Add("Keep in $Category (current)")
-    foreach ($key in $destMap.Keys) { $null = $script:combo.Items.Add($key) }
-    $script:combo.SelectedIndex = 0
-    $form.Controls.Add($script:combo)
-}
-
-# ── Button panel ─────────────────────────────────────────────────────────────
+# Button panel
 $panel = New-Object System.Windows.Forms.FlowLayoutPanel
-$panel.Location     = New-Object System.Drawing.Point(12, 108)
-$panel.Size         = New-Object System.Drawing.Size(496, 82)
+$panel.Location      = New-Object System.Drawing.Point(12, 108)
+$panel.Size          = New-Object System.Drawing.Size(496, 82)
 $panel.FlowDirection = 'LeftToRight'
 $panel.WrapContents  = $true
 
@@ -313,33 +309,54 @@ if (-not $NoOpenLocation) {
     $panel.Controls.Add($btnOpenFolder)
 }
 
-if ($hasShortcuts) {
-    $script:btnMove = New-Btn 'Move To' 74
-    $script:btnMove.Enabled = $false
-    $script:btnMove.Add_Click({
-        $sel = $script:combo.SelectedItem.ToString()
-        $script:result = "move|$($destMap[$sel])"
+# Move To button - always shown, enabled when a destination is selected
+$script:btnMove = New-Btn 'Move To' 74
+$script:btnMove.Enabled = $false
+$script:btnMove.Add_Click({
+    $sel = $script:combo.SelectedItem.ToString()
+    $dest = if ($sel -eq $browseKey) { $script:browsedPath } elseif ($destMap.Contains($sel)) { $destMap[$sel] } else { '' }
+    if ($dest) {
+        $script:result = "move|$dest"
         $form.Close()
-    })
-    $panel.Controls.Add($script:btnMove)
-
-    if (-not $NoCopyFile) {
-        $script:btnCopy = New-Btn 'Copy To' 74
-        $script:btnCopy.Enabled = $false
-        $script:btnCopy.Add_Click({
-            $sel = $script:combo.SelectedItem.ToString()
-            $script:result = "copy|$($destMap[$sel])"
-            $form.Close()
-        })
-        $panel.Controls.Add($script:btnCopy)
     }
+})
+$panel.Controls.Add($script:btnMove)
 
-    $script:combo.Add_SelectedIndexChanged({
+if (-not $NoCopyFile) {
+    $script:btnCopy = New-Btn 'Copy To' 74
+    $script:btnCopy.Enabled = $false
+    $script:btnCopy.Add_Click({
+        $sel = $script:combo.SelectedItem.ToString()
+        $dest = if ($sel -eq $browseKey) { $script:browsedPath } elseif ($destMap.Contains($sel)) { $destMap[$sel] } else { '' }
+        if ($dest) {
+            $script:result = "copy|$dest"
+            $form.Close()
+        }
+    })
+    $panel.Controls.Add($script:btnCopy)
+}
+
+# ComboBox selection handler
+$script:combo.Add_SelectedIndexChanged({
+    $sel = $script:combo.SelectedItem.ToString()
+    if ($sel -eq $browseKey) {
+        $dlg = New-Object System.Windows.Forms.FolderBrowserDialog
+        $dlg.Description = 'Choose destination folder'
+        $dlg.ShowNewFolderButton = $true
+        if ($dlg.ShowDialog() -eq 'OK') {
+            $script:browsedPath = $dlg.SelectedPath
+            $script:btnMove.Enabled = $true
+            if ($script:btnCopy) { $script:btnCopy.Enabled = $true }
+        } else {
+            $script:combo.SelectedIndex = 0
+        }
+    } else {
         $isShortcut = $script:combo.SelectedIndex -gt 0
         $script:btnMove.Enabled = $isShortcut
         if ($script:btnCopy) { $script:btnCopy.Enabled = $isShortcut }
-    })
-}
+        $script:browsedPath = ''
+    }
+})
 
 if (-not $NoConfirm) {
     $btnConfirm = New-Btn 'Confirm' 74
