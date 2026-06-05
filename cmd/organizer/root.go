@@ -36,6 +36,10 @@ var versionCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println(version)
 	},
+	SilenceUsage: true,
+    RunE: func(cmd *cobra.Command, args []string) error {
+        return runStart(cmd, args) // fallback para start quando executado sem subcommand
+    },
 }
 
 // Execute is the entry point called from main.
