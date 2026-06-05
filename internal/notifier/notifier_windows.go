@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/go-toast/toast"
 	"github.com/vitorhugo-java/organizerv2/internal/config"
@@ -143,7 +144,9 @@ func showDestinationDialog(cfg config.NotificationConfig, event FileEvent) (acti
 		args = append(args, "-NoConfirm")
 	}
 
-	out, _ := exec.Command("powershell", args...).Output()
+	cmd := exec.Command("powershell", args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	out, _ := cmd.Output()
 
 	// Parse the last non-empty output line: "<action>|<path>"
 	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
@@ -166,8 +169,7 @@ func showDestinationDialog(cfg config.NotificationConfig, event FileEvent) (acti
 
 func openWithShell(path string) {
 	cmd := exec.Command("cmd", "/c", "start", "", path)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	if err := cmd.Start(); err != nil {
 		log.Printf("[notifier] open error: %v", err)
 	}
