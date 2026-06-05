@@ -49,6 +49,7 @@ func init() {
 	defaultCfg, _ := defaultConfigPath()
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", defaultCfg, "config file path")
 	rootCmd.PersistentFlags().String("log-level", "info", "log level (debug, info, warn, error)")
+	rootCmd.PersistentFlags().Bool("show-terminal", false, "keep the console window visible (Windows only)")
 	rootCmd.AddCommand(versionCmd)
 	cobra.OnInitialize(loadConfig)
 }
