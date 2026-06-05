@@ -24,12 +24,6 @@ func TestDefault(t *testing.T) {
 	if !cfg.Notifications.Actions.CopyPath {
 		t.Error("copy_path action should be enabled by default")
 	}
-	if !cfg.Notifications.Actions.CopyFile {
-		t.Error("copy_file action should be enabled by default")
-	}
-	if cfg.Notifications.Shortcuts == nil {
-		t.Error("shortcuts slice should be initialised (not nil) by default")
-	}
 }
 
 func TestLoadMissingFile(t *testing.T) {
@@ -113,55 +107,6 @@ func TestSaveAndReload(t *testing.T) {
 	}
 	if reloaded.FallbackCategory != "SavedOthers" {
 		t.Errorf("expected SavedOthers, got %s", reloaded.FallbackCategory)
-	}
-}
-
-func TestShortcutsNormalization(t *testing.T) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		t.Skip("no home dir")
-	}
-
-	content := `
-watch_paths:
-  - path: /tmp/watch
-    target_base: /tmp/target
-notifications:
-  enabled: true
-  shortcuts:
-    - name: Desktop
-      path: ~/Desktop
-    - name: NAS
-      path: /mnt/nas
-`
-	f, err := os.CreateTemp("", "organizer-config-*.yaml")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove(f.Name())
-	f.WriteString(content)
-	f.Close()
-
-	cfg, err := Load(f.Name())
-	if err != nil {
-		t.Fatalf("Load error: %v", err)
-	}
-
-	if len(cfg.Notifications.Shortcuts) != 2 {
-		t.Fatalf("expected 2 shortcuts, got %d", len(cfg.Notifications.Shortcuts))
-	}
-
-	byName := map[string]string{}
-	for _, s := range cfg.Notifications.Shortcuts {
-		byName[s.Name] = s.Path
-	}
-
-	want := filepath.Join(home, "Desktop")
-	if got := byName["Desktop"]; got != want {
-		t.Errorf("Desktop shortcut: got %q, want %q", got, want)
-	}
-	if got := byName["NAS"]; got != "/mnt/nas" {
-		t.Errorf("NAS shortcut: got %q, want /mnt/nas", got)
 	}
 }
 

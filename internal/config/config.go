@@ -28,24 +28,13 @@ type NotificationActions struct {
 	OpenFile     bool `yaml:"open_file"     mapstructure:"open_file"`
 	OpenLocation bool `yaml:"open_location" mapstructure:"open_location"`
 	CopyPath     bool `yaml:"copy_path"     mapstructure:"copy_path"`
-	CopyFile     bool `yaml:"copy_file"     mapstructure:"copy_file"`
 	Confirm      bool `yaml:"confirm"       mapstructure:"confirm"`
-}
-
-// Shortcut pairs a display name with an absolute destination path for the
-// Windows interactive dialog.
-type Shortcut struct {
-	Name string `yaml:"name" mapstructure:"name"`
-	Path string `yaml:"path" mapstructure:"path"`
 }
 
 // NotificationConfig controls notification behaviour.
 type NotificationConfig struct {
-	Enabled   bool                `yaml:"enabled"   mapstructure:"enabled"`
-	Actions   NotificationActions `yaml:"actions"   mapstructure:"actions"`
-	// Shortcuts is shown in the Windows interactive destination dialog.
-	// Each entry has a display name and a destination path (~/… supported).
-	Shortcuts []Shortcut          `yaml:"shortcuts" mapstructure:"shortcuts"`
+	Enabled bool                `yaml:"enabled" mapstructure:"enabled"`
+	Actions NotificationActions `yaml:"actions" mapstructure:"actions"`
 }
 
 // Config is the root configuration structure.
@@ -91,13 +80,8 @@ func Default() *Config {
 				OpenFile:     true,
 				OpenLocation: true,
 				CopyPath:     true,
-				CopyFile:     true,
 				Confirm:      true,
 			},
-			Shortcuts: []Shortcut{
-					{Name: "Desktop", Path: "~/Desktop"},
-					{Name: "Documents", Path: "~/Documents"},
-				},
 		},
 	}
 }
@@ -172,13 +156,6 @@ func normalize(cfg *Config) error {
 			return err
 		}
 		cfg.WatchPaths[i].TargetBase = tb
-	}
-	for i, s := range cfg.Notifications.Shortcuts {
-		expanded, err := expandHome(s.Path)
-		if err != nil {
-			return err
-		}
-		cfg.Notifications.Shortcuts[i].Path = expanded
 	}
 	return nil
 }
