@@ -3,6 +3,7 @@ package watcher
 import (
 	"context"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -14,6 +15,20 @@ import (
 )
 
 const debounceDelay = 500 * time.Millisecond
+
+// partialExts are extensions used by browsers for in-progress downloads.
+// Files with these extensions are skipped until the browser renames them.
+var partialExts = map[string]struct{}{
+	".crdownload": {}, // Chrome
+	".part":       {}, // Firefox
+	".download":   {}, // Safari / generic
+	".tmp":        {},
+	".opdownload": {}, // Opera
+}
+
+// sizeStabilityDelay is how long a file's size must remain unchanged before
+// it is considered fully written and safe to move.
+const sizeStabilityDelay = 2 * time.Second
 
 // Watcher watches configured directories for new files and triggers the
 // organizer on each new or completed file.
@@ -82,6 +97,11 @@ func (w *Watcher) schedule(path string) {
 	if w.isCategoryPath(path) {
 		return
 	}
+	// Ignore partial-download extensions immediately; the browser will rename
+	// the file once the download finishes, which will trigger a new event.
+	if _, partial := partialExts[strings.ToLower(filepath.Ext(path))]; partial {
+		return
+	}
 	w.timersMu.Lock()
 	defer w.timersMu.Unlock()
 	if t, ok := w.timers[path]; ok {
@@ -92,6 +112,20 @@ func (w *Watcher) schedule(path string) {
 		w.timersMu.Lock()
 		delete(w.timers, path)
 		w.timersMu.Unlock()
+
+		if !w.isFileStable(path) {
+			// File is still being written; reschedule and wait.
+			w.timersMu.Lock()
+			w.timers[path] = time.AfterFunc(sizeStabilityDelay, func() {
+				w.timersMu.Lock()
+				delete(w.timers, path)
+				w.timersMu.Unlock()
+				w.schedule(path)
+			})
+			w.timersMu.Unlock()
+			return
+		}
+
 		result := w.org.ProcessFile(path)
 		if result.Err != nil {
 			log.Printf("[watcher] error processing %s: %v", path, result.Err)
@@ -103,6 +137,21 @@ func (w *Watcher) schedule(path string) {
 			log.Printf("[watcher] moved %s → %s", filepath.Base(path), result.Category)
 		}
 	})
+}
+
+// isFileStable returns true if the file's size has not changed over
+// sizeStabilityDelay, indicating the write is complete.
+func (w *Watcher) isFileStable(path string) bool {
+	info1, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	time.Sleep(sizeStabilityDelay)
+	info2, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return info1.Size() == info2.Size()
 }
 
 // isCategoryPath returns true if path is inside a known category subdirectory.
