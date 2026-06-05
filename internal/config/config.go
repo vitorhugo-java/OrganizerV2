@@ -94,7 +94,10 @@ func Default() *Config {
 				CopyFile:     true,
 				Confirm:      true,
 			},
-			Shortcuts: []Shortcut{},
+			Shortcuts: []Shortcut{
+					{Name: "Desktop", Path: "~/Desktop"},
+					{Name: "Documents", Path: "~/Documents"},
+				},
 		},
 	}
 }
