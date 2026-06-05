@@ -62,30 +62,18 @@ ignore_extensions:
 fallback_category: Others
 
 # Desktop notifications after each move.
+# On Windows, action buttons appear directly in the toast notification.
 notifications:
   enabled: true
   actions:
-    # Open the moved file with the default application.
+    # "Open File" button — opens the moved file with the default application.
     open_file: true
-    # Open the folder containing the moved file.
+    # "Open Folder" button — opens the destination folder in Explorer / file manager.
     open_location: true
-    # Copy the absolute destination path to the clipboard (Linux / fallback).
+    # Copies the absolute destination path to the clipboard on notification delivery.
     copy_path: true
-    # Enable the "Copy To" button in the Windows destination dialog.
-    # Copies the file bytes to the chosen shortcut folder.
-    copy_file: true
-    # Dismiss / acknowledge the notification.
+    # "OK" button — dismisses the toast without any additional action.
     confirm: true
-
-  # Named destination shortcuts shown in the Windows interactive dialog
-  # (the "Redirect to" ComboBox with Move To / Copy To buttons).
-  # Paths may use "~/" for the home directory.
-  # Remove entries or leave the list empty to hide the destination selector.
-  shortcuts:
-    - name: Desktop
-      path: ~/Desktop
-    - name: Documents
-      path: ~/Documents
 
 # Logging: "debug" | "info" | "warn" | "error"
 log_level: info
