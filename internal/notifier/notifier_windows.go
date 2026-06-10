@@ -5,7 +5,7 @@ package notifier
 import (
 	"fmt"
 	"log"
-	"os/exec"
+	"net/url"
 	"path/filepath"
 
 	"github.com/go-toast/toast"
@@ -52,7 +52,15 @@ func (n *windowsNotifier) deliver(event FileEvent) {
 		})
 	}
 	if n.cfg.Actions.OpenLocation {
-		n.openLocation(event.Destination)
+		// Clicking this button invokes the app as a URI handler, which runs
+		// PowerShell Start-Process explorer.exe /select,"<path>" so the file
+		// is pre-selected in Explorer.
+		actionURI := "organizerv2://open-location?path=" + url.QueryEscape(event.Destination)
+		notification.Actions = append(notification.Actions, toast.Action{
+			Type:      "protocol",
+			Label:     "Open Folder",
+			Arguments: actionURI,
+		})
 	}
 	if n.cfg.Actions.Confirm {
 		notification.Actions = append(notification.Actions, toast.Action{
@@ -68,14 +76,6 @@ func (n *windowsNotifier) deliver(event FileEvent) {
 
 	if n.cfg.Actions.CopyPath && n.clipboardInit {
 		clipboard.Write(clipboard.FmtText, []byte(event.Destination))
-	}
-}
-
-func (n *windowsNotifier) openLocation(filePath string) {
-	// explorer /select,<path> opens the parent folder with the file selected.
-	cmd := exec.Command("explorer", "/select,"+filePath)
-	if err := cmd.Start(); err != nil {
-		log.Printf("[notifier] explorer error: %v", err)
 	}
 }
 
