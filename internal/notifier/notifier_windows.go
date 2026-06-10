@@ -5,6 +5,7 @@ package notifier
 import (
 	"fmt"
 	"log"
+	"os/exec"
 	"path/filepath"
 
 	"github.com/go-toast/toast"
@@ -51,11 +52,7 @@ func (n *windowsNotifier) deliver(event FileEvent) {
 		})
 	}
 	if n.cfg.Actions.OpenLocation {
-		notification.Actions = append(notification.Actions, toast.Action{
-			Type:      "protocol",
-			Label:     "Open Folder",
-			Arguments: filepath.Dir(event.Destination),
-		})
+		n.openLocation(event.Destination)
 	}
 	if n.cfg.Actions.Confirm {
 		notification.Actions = append(notification.Actions, toast.Action{
@@ -71,6 +68,14 @@ func (n *windowsNotifier) deliver(event FileEvent) {
 
 	if n.cfg.Actions.CopyPath && n.clipboardInit {
 		clipboard.Write(clipboard.FmtText, []byte(event.Destination))
+	}
+}
+
+func (n *windowsNotifier) openLocation(filePath string) {
+	// explorer /select,<path> opens the parent folder with the file selected.
+	cmd := exec.Command("explorer", "/select,"+filePath)
+	if err := cmd.Start(); err != nil {
+		log.Printf("[notifier] explorer error: %v", err)
 	}
 }
 
