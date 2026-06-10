@@ -52,7 +52,14 @@ func (n *windowsNotifier) deliver(event FileEvent) {
 		})
 	}
 	if n.cfg.Actions.OpenLocation {
-		n.openLocation(event.Destination)
+		// Button opens the parent folder (file:// URI); the auto-open below
+		// also runs immediately with file selected via PowerShell.
+		folderURI := "file:///" + filepath.ToSlash(filepath.Dir(event.Destination))
+		notification.Actions = append(notification.Actions, toast.Action{
+			Type:      "protocol",
+			Label:     "Open Folder",
+			Arguments: folderURI,
+		})
 	}
 	if n.cfg.Actions.Confirm {
 		notification.Actions = append(notification.Actions, toast.Action{
@@ -66,14 +73,21 @@ func (n *windowsNotifier) deliver(event FileEvent) {
 		log.Printf("[notifier] toast push error: %v", err)
 	}
 
+	// Auto-open folder with the file selected right after the notification fires.
+	if n.cfg.Actions.OpenLocation {
+		n.openLocation(event.Destination)
+	}
+
 	if n.cfg.Actions.CopyPath && n.clipboardInit {
 		clipboard.Write(clipboard.FmtText, []byte(event.Destination))
 	}
 }
 
 func (n *windowsNotifier) openLocation(filePath string) {
-	// explorer /select,<path> opens the parent folder with the file selected.
-	cmd := exec.Command("explorer", "/select,"+filePath)
+	// Use PowerShell Start-Process so the path is passed as a proper argument,
+	// which handles spaces and special characters correctly.
+	ps := fmt.Sprintf(`Start-Process explorer.exe -ArgumentList '/select,"%s"'`, filePath)
+	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", ps)
 	if err := cmd.Start(); err != nil {
 		log.Printf("[notifier] explorer error: %v", err)
 	}

@@ -63,9 +63,19 @@ func (n *linuxNotifier) deliver(event FileEvent) {
 			"--icon=folder",
 			"--expire-time=5000",
 		}
+		if n.cfg.Actions.OpenLocation {
+			// --action requires notify-send ≥ 0.7.9 (libnotify). If the daemon
+			// does not support it, the notification still shows without the button.
+			args = append(args, "--action=open-folder:Open Folder")
+		}
 		cmd := exec.Command("notify-send", args...)
-		if err := cmd.Run(); err != nil {
+		out, err := cmd.Output()
+		if err != nil {
 			log.Printf("[notifier] notify-send error: %v", err)
+		} else if n.cfg.Actions.OpenLocation && strings.TrimSpace(string(out)) == "open-folder" {
+			// User clicked the button — open with file selected.
+			n.openLocation(event.Destination)
+			return
 		}
 	}
 
@@ -74,6 +84,7 @@ func (n *linuxNotifier) deliver(event FileEvent) {
 		n.copyToClipboard(event.Destination)
 	}
 	if n.cfg.Actions.OpenLocation {
+		// Auto-open immediately so the folder is ready without needing to click.
 		n.openLocation(event.Destination)
 	}
 }
