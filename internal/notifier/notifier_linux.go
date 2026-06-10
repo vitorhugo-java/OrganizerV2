@@ -74,7 +74,7 @@ func (n *linuxNotifier) deliver(event FileEvent) {
 		n.copyToClipboard(event.Destination)
 	}
 	if n.cfg.Actions.OpenLocation {
-		n.openLocation(filepath.Dir(event.Destination))
+		n.openLocation(event.Destination)
 	}
 }
 
@@ -101,12 +101,28 @@ func (n *linuxNotifier) copyToClipboard(path string) {
 	}
 }
 
-func (n *linuxNotifier) openLocation(dir string) {
-	// xdg-open opens the folder in the default file manager.
+func (n *linuxNotifier) openLocation(filePath string) {
+	// Try the standard D-Bus FileManager1 interface first; it opens the file
+	// manager and selects the specific file (supported by Nautilus, Thunar,
+	// Dolphin, Nemo, etc.).
+	uri := "file://" + filePath
+	if _, err := exec.LookPath("dbus-send"); err == nil {
+		cmd := exec.Command("dbus-send", "--session", "--print-reply",
+			"--dest=org.freedesktop.FileManager1",
+			"/org/freedesktop/FileManager1",
+			"org.freedesktop.FileManager1.ShowItems",
+			"array:string:"+uri,
+			"string:",
+		)
+		if err := cmd.Run(); err == nil {
+			return
+		}
+	}
+	// Fall back to opening the parent directory without selection.
 	if _, err := exec.LookPath("xdg-open"); err != nil {
 		return
 	}
-	cmd := exec.Command("xdg-open", dir)
+	cmd := exec.Command("xdg-open", filepath.Dir(filePath))
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {
