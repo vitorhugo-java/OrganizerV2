@@ -56,6 +56,11 @@ func (n *linuxNotifier) deliver(event FileEvent) {
 	filename := filepath.Base(event.Destination)
 	body := fmt.Sprintf("Moved to %s/", event.Category)
 
+	// Copy to clipboard before blocking on the notification.
+	if n.cfg.Actions.CopyPath {
+		n.copyToClipboard(event.Destination)
+	}
+
 	if n.notifySendAvail && n.cfg.Enabled {
 		args := []string{
 			"OrganizerV2",
@@ -64,28 +69,19 @@ func (n *linuxNotifier) deliver(event FileEvent) {
 			"--expire-time=5000",
 		}
 		if n.cfg.Actions.OpenLocation {
-			// --action requires notify-send ≥ 0.7.9 (libnotify). If the daemon
-			// does not support it, the notification still shows without the button.
+			// --action requires notify-send ≥ 0.7.9 (libnotify). On older
+			// daemons the notification still shows, just without the button.
 			args = append(args, "--action=open-folder:Open Folder")
 		}
 		cmd := exec.Command("notify-send", args...)
 		out, err := cmd.Output()
 		if err != nil {
 			log.Printf("[notifier] notify-send error: %v", err)
-		} else if n.cfg.Actions.OpenLocation && strings.TrimSpace(string(out)) == "open-folder" {
-			// User clicked the button — open with file selected.
-			n.openLocation(event.Destination)
 			return
 		}
-	}
-
-	// Execute actions silently in the background.
-	if n.cfg.Actions.CopyPath {
-		n.copyToClipboard(event.Destination)
-	}
-	if n.cfg.Actions.OpenLocation {
-		// Auto-open immediately so the folder is ready without needing to click.
-		n.openLocation(event.Destination)
+		if n.cfg.Actions.OpenLocation && strings.TrimSpace(string(out)) == "open-folder" {
+			n.openLocation(event.Destination)
+		}
 	}
 }
 
